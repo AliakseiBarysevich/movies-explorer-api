@@ -1,15 +1,9 @@
-// createUser
-// login
-// getCurrentUser
-// updateUserInfo
-
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 const BadRequestError = require('../errors/bad-request-err');
 const NotFoundError = require('../errors/not-found-err');
 const ConflictingRequestError = require('../errors/conflicting-request-err');
-const UnauthorizedError = require('../errors/unauthorized-err');
 
 const MONGO_EMAIL_DUPLICATE_ERROR_CODE = 11000;
 const { NODE_ENV, JWT_SECRET } = process.env;
@@ -43,15 +37,15 @@ const createUser = (req, res, next) => {
           next(new BadRequestError('Переданы некорректные данные при создании пользователя.'));
         }
         if (err.code === MONGO_EMAIL_DUPLICATE_ERROR_CODE) {
-          next(new ConflictingRequestError('Переданы некорректные данные при создании пользователя.'));
+          next(new ConflictingRequestError('Пользователь с таким email уже существует.'));
         } else {
           next(err);
         }
       }));
 };
 const updateUserInfo = (req, res, next) => {
-  const { name } = req.body;
-  User.findByIdAndUpdate(req.user._id, { name }, { new: true, runValidators: true })
+  const { name, email } = req.body;
+  User.findByIdAndUpdate(req.user._id, { name, email }, { new: true, runValidators: true })
     .then((user) => {
       if (!user) {
         next(new NotFoundError('Пользователь по указанному _id не найден.'));
@@ -61,6 +55,9 @@ const updateUserInfo = (req, res, next) => {
     .catch((err) => {
       if (err.name === 'ValidationError') {
         next(new BadRequestError('Переданы некорректные данные при обновлении профиля.'));
+      }
+      if (err.code === MONGO_EMAIL_DUPLICATE_ERROR_CODE) {
+        next(new ConflictingRequestError('Пользователь с таким email уже существует.'));
       } else {
         next(err);
       }
@@ -73,9 +70,7 @@ const login = (req, res, next) => {
       const token = jwt.sign({ _id: user._id }, NODE_ENV === 'production' ? JWT_SECRET : 'dev-secret', { expiresIn: '7d' });
       res.status(200).send({ token });
     })
-    .catch(() => {
-      next(new UnauthorizedError('Произошла ошибка аутентификации'));
-    });
+    .catch(next);
 };
 
 module.exports = {

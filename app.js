@@ -13,7 +13,6 @@ const { PORT = 3000, DB_ADDRESS = 'mongodb://localhost:27017/bitfilmsdb' } = pro
 const routes = require('./routes/index');
 
 mongoose.connect(DB_ADDRESS);
-app.use(requestLogger);
 app.use(helmet());
 app.use(requestLogger);
 app.use(limiter);
