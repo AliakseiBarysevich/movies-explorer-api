@@ -4,17 +4,25 @@ const User = require('../models/user');
 const BadRequestError = require('../errors/bad-request-err');
 const NotFoundError = require('../errors/not-found-err');
 const ConflictingRequestError = require('../errors/conflicting-request-err');
+const {
+  NOT_FOUND_USER_ERROR_MESSAGE,
+  INCORRECT_ID_ERROR_MESSAGE,
+  BAD_REQUEST_ERROR_MESSAGE,
+  DUPLICATE_EMAIL_ERROR_MESSAGE,
+  VALIDATION_ERROR_NAME,
+  CAST_ERROR_NAME,
+} = require('../utils/constants');
 
 const MONGO_EMAIL_DUPLICATE_ERROR_CODE = 11000;
 const { NODE_ENV, JWT_SECRET } = process.env;
 
 const getCurrentUser = (req, res, next) => {
   User.findById(req.user._id)
-    .orFail(() => new NotFoundError('Пользователь с указанным id не существует'))
+    .orFail(() => new NotFoundError(NOT_FOUND_USER_ERROR_MESSAGE))
     .then((user) => res.status(200).send(user))
     .catch((err) => {
-      if (err.name === 'CastError') {
-        next(new BadRequestError('Указан некорректный _id.'));
+      if (err.name === CAST_ERROR_NAME) {
+        next(new BadRequestError(INCORRECT_ID_ERROR_MESSAGE));
       } else {
         next(err);
       }
@@ -33,11 +41,11 @@ const createUser = (req, res, next) => {
         name: user.name, email: user.email,
       }))
       .catch((err) => {
-        if (err.name === 'ValidationError') {
-          next(new BadRequestError('Переданы некорректные данные при создании пользователя.'));
+        if (err.name === VALIDATION_ERROR_NAME) {
+          next(new BadRequestError(BAD_REQUEST_ERROR_MESSAGE));
         }
         if (err.code === MONGO_EMAIL_DUPLICATE_ERROR_CODE) {
-          next(new ConflictingRequestError('Пользователь с таким email уже существует.'));
+          next(new ConflictingRequestError(DUPLICATE_EMAIL_ERROR_MESSAGE));
         } else {
           next(err);
         }
@@ -48,16 +56,16 @@ const updateUserInfo = (req, res, next) => {
   User.findByIdAndUpdate(req.user._id, { name, email }, { new: true, runValidators: true })
     .then((user) => {
       if (!user) {
-        next(new NotFoundError('Пользователь по указанному _id не найден.'));
+        next(new NotFoundError(NOT_FOUND_USER_ERROR_MESSAGE));
       }
       return res.status(200).send(user);
     })
     .catch((err) => {
-      if (err.name === 'ValidationError') {
-        next(new BadRequestError('Переданы некорректные данные при обновлении профиля.'));
+      if (err.name === VALIDATION_ERROR_NAME) {
+        next(new BadRequestError(BAD_REQUEST_ERROR_MESSAGE));
       }
       if (err.code === MONGO_EMAIL_DUPLICATE_ERROR_CODE) {
-        next(new ConflictingRequestError('Пользователь с таким email уже существует.'));
+        next(new ConflictingRequestError(DUPLICATE_EMAIL_ERROR_MESSAGE));
       } else {
         next(err);
       }
